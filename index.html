@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>🎮 Game Guide Chatbot By Harshad Teli</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <link rel="shortcut icon" href="./PAGES/harshtech-logo.jpg" type="image/x-icon">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: #101820;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    header {
+      background: #1a1a2e;
+      padding: 1rem;
+      text-align: center;
+      font-size: 1.5rem;
+      color: #00ffcc;
+      position: relative;
+    }
+    .controls {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+    }
+    .controls button {
+      background: #222;
+      color: #0f0;
+      border: none;
+      margin-left: 5px;
+      padding: 5px 10px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    #chatbox {
+      flex: 1;
+      padding: 1rem;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+    .message {
+      padding: 10px;
+      margin: 6px 0;
+      border-radius: 10px;
+      max-width: 75%;
+      line-height: 1.4;
+    }
+    .bot {
+      background: #003f5c;
+      align-self: flex-start;
+      animation: fadeIn 0.4s ease-in;
+    }
+    .user {
+      background: #00b894;
+      align-self: flex-end;
+    }
+    #inputBox {
+      display: flex;
+      padding: 1rem;
+      background: #1f1f2f;
+    }
+    #inputBox input {
+      flex: 1;
+      padding: 10px;
+      border-radius: 10px;
+      border: none;
+      font-size: 16px;
+    }
+    #inputBox button {
+      margin-left: 10px;
+      padding: 10px 20px;
+      background: #00ffcc;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .game-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .game-buttons button {
+      padding: 10px 15px;
+      background: #2c3e50;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .game-buttons button:hover {
+      background: #16a085;
+    }
+    #namePrompt {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.9);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      z-index: 999;
+    }
+    #namePrompt input {
+      padding: 12px;
+      font-size: 18px;
+      border-radius: 10px;
+      margin-top: 10px;
+    }
+    #namePrompt button {
+      margin-top: 10px;
+      padding: 10px 20px;
+      font-size: 16px;
+      background: #00ffcc;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+    @keyframes fadeIn {
+      from {opacity: 0; transform: translateY(5px);}
+      to {opacity: 1; transform: translateY(0);}
+    }
+    @media (max-width: 600px) {
+      header { font-size: 1.2rem; }
+      .message { font-size: 0.9rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Name Prompt -->
+<div id="namePrompt">
+  <h2>Welcome Gamer!</h2>
+  <p>Enter your name to begin:</p>
+  <input type="text" id="usernameInput" placeholder="Your name" />
+  <button onclick="startChat()">Start</button>
+</div>
+
+<header>
+  🎮 Game Guide Chatbot
+  <div class="controls">
+    <button onclick="startListening()">🎤 Voice</button>
+    <button onclick="exportChat()">📄 Export</button>
+  </div>
+</header>
+
+<div id="chatbox"></div>
+
+<div id="inputBox">
+  <input type="text" id="userInput" placeholder="Ask about games..." />
+  <button onclick="sendMessage()">Send</button>
+</div><br><br>
+
+<!-- Audio Elements -->
+<audio id="clickAudio" src="https://assets.mixkit.co/sfx/preview/mixkit-select-click-1109.mp3"></audio>
+<audio id="chessAudio" src="https://assets.mixkit.co/sfx/preview/mixkit-game-level-completed-2059.mp3"></audio>
+<audio id="sudokuAudio" src="https://assets.mixkit.co/sfx/preview/mixkit-video-game-win-2016.mp3"></audio>
+<audio id="tetrisAudio" src="https://assets.mixkit.co/sfx/preview/mixkit-arcade-game-notification-234.mp3"></audio>
+<center><small><font color="red">&copy; 2025 HarshTech | All Rights Reserved</font></small></center>
+<br><br><br>
+
+<script>
+  let userName = "";
+  let history = [];
+
+  const chatbox = document.getElementById("chatbox");
+
+  function playSound(id) {
+    const audio = document.getElementById(id);
+    if (audio) audio.play();
+  }
+
+  function speak(text) {
+    const msg = new SpeechSynthesisUtterance(text);
+    msg.lang = 'en-US';
+    window.speechSynthesis.speak(msg);
+  }
+
+  function addMessage(text, sender = "bot", speakOut = false) {
+    const msg = document.createElement("div");
+    msg.className = `message ${sender}`;
+    msg.innerHTML = text;
+    chatbox.appendChild(msg);
+    chatbox.scrollTop = chatbox.scrollHeight;
+
+    const plainText = text.replace(/<[^>]*>?/gm, '');
+    history.push(`${sender === 'user' ? userName : 'Bot'}: ${plainText}`);
+    if (sender === 'bot' && speakOut) speak(plainText);
+  }
+
+  function startChat() {
+    const nameInput = document.getElementById("usernameInput").value.trim();
+    if (nameInput !== "") {
+      userName = nameInput;
+      document.getElementById("namePrompt").style.display = "none";
+      addMessage(`Hello <b>${userName}</b>! I’m your game guide assistant which developed by HarshTech.`, "bot", true);
+      setTimeout(() => {
+        addMessage("In future we are added more games for you,Here are some games you can try:", "bot", true);
+        showGameOptions();
+      }, 1000);
+    }
+  }
+
+  function sendMessage() {
+    const input = document.getElementById("userInput");
+    const text = input.value.trim();
+    if (text !== "") {
+      playSound("clickAudio");
+      addMessage(`<b>${userName}</b>: ${text}`, "user");
+      input.value = "";
+      setTimeout(() => handleBotResponse(text.toLowerCase()), 600);
+    }
+  }
+
+  function handleBotResponse(message) {
+    if (message.includes("chess")) {
+      playSound("chessAudio");
+      addMessage("Opening Online Chess...", "bot", true);
+      setTimeout(() => window.open("https://www.chess.com/play/online", "_blank"), 1000);
+    } else if (message.includes("sudoku")) {
+      playSound("sudokuAudio");
+      addMessage("Opening Sudoku Puzzle...", "bot", true);
+      setTimeout(() => window.open("https://sudoku.com", "_blank"), 1000);
+    } else if (message.includes("tetris")) {
+      playSound("tetrisAudio");
+      addMessage("Opening Tetris...", "bot", true);
+      setTimeout(() => window.open("https://tetris.com/play-tetris", "_blank"), 1000);
+    } else {
+      addMessage("I can guide you to Chess, Sudoku, Tetris. Try saying or typing one!", "bot", true);
+    }
+  }
+
+  function showGameOptions() {
+    const gameButtons = document.createElement("div");
+    gameButtons.className = "game-buttons";
+    gameButtons.innerHTML = `
+      <button onclick="playGame('chess')">♟️ Chess</button>
+      <button onclick="playGame('sudoku')">🔢 Sudoku</button>
+      <button onclick="playGame('tetris')">🧱 Tetris</button>
+    `;
+    chatbox.appendChild(gameButtons);
+  }
+
+  function playGame(game) {
+    playSound("clickAudio");
+    handleBotResponse(game);
+  }
+
+  function startListening() {
+    if (!('webkitSpeechRecognition' in window)) {
+      alert("Voice recognition not supported");
+      return;
+    }
+    const recognition = new webkitSpeechRecognition();
+    recognition.lang = "en-US";
+    recognition.onresult = function(event) {
+      const command = event.results[0][0].transcript.toLowerCase();
+      document.getElementById("userInput").value = command;
+      sendMessage();
+    };
+    recognition.start();
+  }
+
+  function exportChat() {
+    playSound("clickAudio");
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    doc.setFontSize(12);
+    doc.text("🎮 Game Chat History", 10, 10);
+    history.forEach((line, i) => {
+      doc.text(line, 10, 20 + i * 7);
+    });
+    doc.save("chat_history.pdf");
+  }
+</script>
+<script src="./PAGES/prevent.js"></script>
+
+</body>
+</html>
+
